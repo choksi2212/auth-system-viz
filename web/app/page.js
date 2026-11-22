@@ -275,6 +275,10 @@ export default function Home() {
       T(null);
       U(null);
       D([]);
+      N("");
+      E("");
+      P(null);
+      M("login");
       V("vault");
     });
   }
