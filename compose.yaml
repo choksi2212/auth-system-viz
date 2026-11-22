@@ -15,10 +15,9 @@ services:
       - vellum-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3080"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/api/openapi.json"]
       interval: 15s
       timeout: 5s
       retries: 8
 volumes:
   vellum-data:
-

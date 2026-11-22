@@ -3,7 +3,7 @@
 A private document workspace built with Next.js, FastAPI and PostgreSQL.
 
 ```powershell
-docker compose up --build -d
+docker compose up --build -d --wait
 ```
 
 Open http://localhost:3080. One container (`vellum`) runs the interface, API and database. The named volume retains documents, cryptographic keys and account records.

@@ -123,6 +123,18 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
+@app.middleware("http")
+async def limit_upload_body(request: Request, call_next):
+    if request.url.path == "/vault/documents" and request.method == "POST":
+        try:
+            size = int(request.headers.get("content-length", "0"))
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Invalid request size."})
+        if size > 20 * 1024 * 1024 + 65536:
+            return JSONResponse(status_code=413, content={"detail": "Files must be 20 MB or smaller."})
+    return await call_next(request)
+
+
 app.state.limiter = limiter
 
 app.add_middleware(SlowAPIMiddleware)

@@ -307,9 +307,9 @@ export default function Home() {
             <div className="story-copy">
               <span className="eyebrow">A PRIVATE PLACE FOR WHAT MATTERS</span>
               <h1>
-                Some things
+                Some things{" "}
                 <br />
-                are yours.
+                are yours.{" "}
                 <br />
                 <em>Keep them so.</em>
               </h1>
@@ -630,9 +630,9 @@ export default function Home() {
                     <div>
                       <span>STORAGE USED</span>
                       <strong>
-                        {size(docs.reduce((a, d) => a + Number(d.size), 0))}
+                        {size(docs.reduce((a, d) => a + Number(d.size) + 28, 0))}
                       </strong>
-                      <p>Encrypted at rest</p>
+                      <p>Encrypted document bytes</p>
                     </div>
                     <div className="protection">
                       <ShieldCheck size={24} />

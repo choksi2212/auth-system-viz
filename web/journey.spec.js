@@ -3,6 +3,8 @@ const { test, expect } = require("@playwright/test");
 const fs = require("fs");
 test("complete real vault journey on desktop and mobile", async ({ page }) => {
   const errors = [];
+  const externalRequests = [];
+  page.on("request", r => {if(!r.url().startsWith("http://localhost:3080"))externalRequests.push(r.url())});
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("http://localhost:3080");
   await expect(
@@ -91,5 +93,11 @@ test("complete real vault journey on desktop and mobile", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Your private space awaits." }),
   ).toBeVisible();
+  await expect(page.locator('.form-inner form')).toHaveCSS('opacity','1');
+  await page.waitForFunction(() => !document.querySelector('.form-inner form')?.style.transform);
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'../evidence/sign-in-mobile.png',fullPage:true});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
   expect(errors).toEqual([]);
+  expect(externalRequests).toEqual([]);
 });

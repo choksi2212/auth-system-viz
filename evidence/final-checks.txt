@@ -1,0 +1,115 @@
+PASS email verification accepts real token 0
+PASS verification token cannot replay 0
+PASS password login 0
+PASS email verification accepts real token 1
+PASS verification token cannot replay 1
+PASS password login 1
+PASS anonymous vault rejected
+PASS malformed JWT rejected
+PASS real binary upload
+PASS ciphertext differs from plaintext
+PASS encrypted file has GCM envelope length
+PASS owner listing contains file
+PASS wrapped key not disclosed
+PASS download byte-for-byte exact
+PASS signature verification succeeds
+PASS cross-account GET rejected
+PASS cross-account POST rejected
+PASS cross-account DELETE rejected
+PASS oversized upload rejected
+PASS modified ciphertext blocks download
+PASS modified ciphertext blocks verification
+PASS forged signature rejected
+PASS changed database digest rejected
+PASS corrupted wrapped key rejected
+PASS identical plaintext receives different encryption
+PASS delete real document
+PASS deleted bytes removed
+PASS deleted document not downloadable
+PASS audit chain validates
+PASS altered audit event detected
+PASS audit restores after original restored
+PASS 2FA enable
+PASS wrong OTP rejected
+PASS real OTP accepted
+PASS OTP replay rejected
+PASS pending JWT cannot access vault
+PASS refresh rotation
+PASS old refresh replay rejected
+PASS old access revoked after rotation
+PASS rotated access works
+PASS logout works
+PASS logged-out access rejected
+PASS password reset
+PASS reset invalidates existing access
+PASS reset replay rejected
+PASS long bcrypt password rejected
+PASS invalid OTP format rejected
+PASS invalid reset token rejected
+PASS SQL injection remains data
+PASS concurrent refresh allows exactly one winner
+PASS five wrong passwords lock account
+PASS locked account rejects correct password
+{
+  "passed": 52,
+  "checks": [
+    "email verification accepts real token 0",
+    "verification token cannot replay 0",
+    "password login 0",
+    "email verification accepts real token 1",
+    "verification token cannot replay 1",
+    "password login 1",
+    "anonymous vault rejected",
+    "malformed JWT rejected",
+    "real binary upload",
+    "ciphertext differs from plaintext",
+    "encrypted file has GCM envelope length",
+    "owner listing contains file",
+    "wrapped key not disclosed",
+    "download byte-for-byte exact",
+    "signature verification succeeds",
+    "cross-account GET rejected",
+    "cross-account POST rejected",
+    "cross-account DELETE rejected",
+    "oversized upload rejected",
+    "modified ciphertext blocks download",
+    "modified ciphertext blocks verification",
+    "forged signature rejected",
+    "changed database digest rejected",
+    "corrupted wrapped key rejected",
+    "identical plaintext receives different encryption",
+    "delete real document",
+    "deleted bytes removed",
+    "deleted document not downloadable",
+    "audit chain validates",
+    "altered audit event detected",
+    "audit restores after original restored",
+    "2FA enable",
+    "wrong OTP rejected",
+    "real OTP accepted",
+    "OTP replay rejected",
+    "pending JWT cannot access vault",
+    "refresh rotation",
+    "old refresh replay rejected",
+    "old access revoked after rotation",
+    "rotated access works",
+    "logout works",
+    "logged-out access rejected",
+    "password reset",
+    "reset invalidates existing access",
+    "reset replay rejected",
+    "long bcrypt password rejected",
+    "invalid OTP format rejected",
+    "invalid reset token rejected",
+    "SQL injection remains data",
+    "concurrent refresh allows exactly one winner",
+    "five wrong passwords lock account",
+    "locked account rejects correct password"
+  ]
+}
+
+Running 1 test using 1 worker
+
+  ok 1 journey.spec.js:4:1 › complete real vault journey on desktop and mobile (4.1s)
+
+  1 passed (4.7s)

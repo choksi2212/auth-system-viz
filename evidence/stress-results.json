@@ -1,0 +1,18 @@
+{
+  "malformed_token_requests": 200,
+  "concurrency": 20,
+  "all_rejected_401": true,
+  "oversized_30MiB_status": 413,
+  "oversized_rejection_seconds": 0.172,
+  "login_rate_limit_statuses": [
+    401,
+    401,
+    401,
+    401,
+    429,
+    429,
+    429,
+    429
+  ],
+  "authenticated_service_remained_available": true
+}
