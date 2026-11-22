@@ -1,0 +1,11 @@
+.git
+.env
+web/node_modules
+web/.next
+backend/tests
+**/__pycache__
+
+evidence
+checks
+web/test-results
+web/audit.json

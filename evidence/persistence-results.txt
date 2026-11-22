@@ -1,0 +1,2 @@
+PASS database, keys, session and encrypted bytes survive restart
+PASS signature survives restart

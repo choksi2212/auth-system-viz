@@ -1,0 +1,10 @@
+PRIVATE MEMORANDUM
+
+A document is more than the bytes that compose it.
+It may contain an idea, a promise, or a record worth keeping.
+
+Vellum encrypts this file with its own random AES-256 key.
+RSA-OAEP protects that key, while a digital signature and authenticated
+encryption verify the contents before a download is allowed.
+
+Upload this file, verify it, then download it and compare the contents.

@@ -1,0 +1,24 @@
+services:
+  vellum:
+    build: .
+    container_name: vellum
+    ports:
+      - "127.0.0.1:3080:3000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_BASE_URL: http://localhost:3080
+      ALLOWED_ORIGINS: http://localhost:3080
+      MAIL_FROM_NAME: Vellum
+    volumes:
+      - vellum-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3080"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+volumes:
+  vellum-data:
+
