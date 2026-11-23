@@ -116,7 +116,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 # ── App ───────────────────────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="Vellum API",
+    title="Cryptrace API",
     version="2.0.0",
     lifespan=lifespan,
     docs_url="/docs",

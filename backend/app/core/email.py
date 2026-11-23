@@ -87,7 +87,7 @@ def _wrap(body_html: str) -> str:
 <body style="margin:0;padding:0;background:#f5f7fb;color:#192b46;font-family:Arial,Helvetica,sans-serif;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;background:#f5f7fb;">
 <tr><td align="center"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-<tr><td style="padding:0 0 26px;font-family:Georgia,serif;font-size:40px;letter-spacing:-2px;color:#192b46;">vellum</td></tr>
+<tr><td style="padding:0 0 26px;font-family:Georgia,serif;font-size:40px;letter-spacing:-2px;color:#192b46;">cryptrace</td></tr>
 <tr><td style="border-top:3px solid #315b8c;border-bottom:1px solid #dbe2ed;padding:36px 30px;background:#edf2f9;">
 <p style="font-size:10px;letter-spacing:2px;color:#52647c;margin:0 0 28px;">YOUR PRIVATE WORKSPACE</p>
 {body_html}
@@ -108,7 +108,7 @@ async def send_verification_email(to: str, token: str) -> None:
   Verify your email address
 </h2>
 <p style="color:#52647c;line-height:1.65;margin:0 0 28px;">
-  Welcome to Vellum! Click the button below to confirm your email address.<br>
+  Welcome to Cryptrace! Click the button below to confirm your email address.<br>
   This link is valid for <strong style="color:#192b46;">24 hours</strong>.
 </p>
 <a href="{link}"
@@ -120,7 +120,7 @@ async def send_verification_email(to: str, token: str) -> None:
   If the button doesn't work, paste this link into your browser:<br>
   <a href="{link}" style="color:#315b8c;word-break:break-all;">{link}</a>
 </p>"""
-    await _send("Verify your email — Vellum", to, _wrap(body))
+    await _send("Verify your email — Cryptrace", to, _wrap(body))
 
 
 async def send_reset_email(to: str, token: str) -> None:
@@ -130,7 +130,7 @@ async def send_reset_email(to: str, token: str) -> None:
   Reset your password
 </h2>
 <p style="color:#52647c;line-height:1.65;margin:0 0 28px;">
-  We received a request to reset the password for your Vellum account.<br>
+  We received a request to reset the password for your Cryptrace account.<br>
   This link expires in <strong style="color:#192b46;">1 hour</strong>.
   If you didn't make this request, no action is needed.
 </p>
@@ -143,7 +143,7 @@ async def send_reset_email(to: str, token: str) -> None:
   Direct link:<br>
   <a href="{link}" style="color:#315b8c;word-break:break-all;">{link}</a>
 </p>"""
-    await _send("Reset your password — Vellum", to, _wrap(body))
+    await _send("Reset your password — Cryptrace", to, _wrap(body))
 
 
 async def send_otp_email(to: str, otp: str) -> None:
@@ -164,6 +164,6 @@ async def send_otp_email(to: str, otp: str) -> None:
 </div>
 <p style="color:#52647c;font-size:13px;margin:0;line-height:1.6;">
   This code is single-use. Never share it with anyone —
-  Vellum will <strong>never</strong> ask you for it.
+  Cryptrace will <strong>never</strong> ask you for it.
 </p>"""
-    await _send("Your login OTP — Vellum", to, _wrap(body))
+    await _send("Your login OTP — Cryptrace", to, _wrap(body))

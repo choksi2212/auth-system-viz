@@ -304,7 +304,7 @@ export default function Home() {
   if (!ready)
     return (
       <div className="loading">
-        <Loader2 className="spin" /> Opening Vellum
+        <Loader2 className="spin" /> Opening Cryptrace
       </div>
     );
   return (
@@ -313,7 +313,7 @@ export default function Home() {
         <main className="auth">
           <div className="auth-story">
             <a className="brand" href="/">
-              vellum
+              cryptrace
             </a>
             <div className="story-copy">
               <span className="eyebrow">A PRIVATE PLACE FOR WHAT MATTERS</span>
@@ -338,7 +338,7 @@ export default function Home() {
           </div>
           <div className="auth-form">
             <div className="form-inner">
-              <span className="eyebrow">WELCOME TO VELLUM</span>
+              <span className="eyebrow">WELCOME TO CRYPTRACE</span>
               <h2>
                 {
                   {
@@ -469,7 +469,7 @@ export default function Home() {
               <p className="switch">
                 {mode === "login" ? (
                   <>
-                    New to Vellum?{" "}
+                    New to Cryptrace?{" "}
                     <button
                       onClick={() => {
                         M("signup");
@@ -514,7 +514,7 @@ export default function Home() {
         <div className="workspace">
           <aside>
             <a href="/" className="brand">
-              vellum
+              cryptrace
             </a>
             <div className="workspace-label">PERSONAL WORKSPACE</div>
             <nav>

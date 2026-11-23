@@ -95,7 +95,7 @@ export default function LiveOperations({ live }) {
     );
     const a = document.createElement("a");
     a.href = url;
-    a.download = `vellum-operation-${op.id}.json`;
+    a.download = `cryptrace-operation-${op.id}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }

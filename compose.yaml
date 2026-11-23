@@ -1,7 +1,7 @@
 services:
-  vellum:
+  cryptrace:
     build: .
-    container_name: vellum
+    container_name: cryptrace
     ports:
       - "127.0.0.1:3080:3000"
     env_file:
@@ -10,7 +10,7 @@ services:
     environment:
       APP_BASE_URL: http://localhost:3080
       ALLOWED_ORIGINS: http://localhost:3080
-      MAIL_FROM_NAME: Vellum
+      MAIL_FROM_NAME: Cryptrace
     volumes:
       - vellum-data:/data
     restart: unless-stopped

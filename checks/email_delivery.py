@@ -17,11 +17,11 @@ r = httpx.post(
     "https://api.brevo.com/v3/smtp/email",
     headers={"api-key": settings.BREVO_API_KEY},
     json={
-        "sender": {"name": "Vellum", "email": settings.MAIL_FROM},
+        "sender": {"name": "Cryptrace", "email": settings.MAIL_FROM},
         "to": [{"email": settings.MAIL_FROM}],
-        "subject": "Vellum — email delivery check",
+        "subject": "Cryptrace — email delivery check",
         "htmlContent": _wrap(
-            "<h2>Your private workspace is ready.</h2><p>This message confirms that Vellum can send account security emails through the configured provider.</p>"
+            "<h2>Your private workspace is ready.</h2><p>This message confirms that Cryptrace can send account security emails through the configured provider.</p>"
         ),
     },
     timeout=30,

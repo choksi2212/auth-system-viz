@@ -9,7 +9,7 @@ runuser -u postgres -- /usr/lib/postgresql/15/bin/pg_ctl -D /data/postgres -l /d
 runuser -u postgres -- psql -h 127.0.0.1 -tc "SELECT 1 FROM pg_database WHERE datname='vellum'" | grep -q 1 || runuser -u postgres -- createdb -h 127.0.0.1 vellum
 if [ ! -f /data/secret ]; then python -c "import secrets;print(secrets.token_hex(48))" > /data/secret; chmod 600 /data/secret; fi
 export SECRET_KEY=$(cat /data/secret)
-export MAIL_FROM_NAME=Vellum
+export MAIL_FROM_NAME=Cryptrace
 export DATABASE_URL=postgresql://postgres@127.0.0.1:5432/vellum
 cd /app/backend
 uvicorn app.main:app --host 127.0.0.1 --port 8000 &
