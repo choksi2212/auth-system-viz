@@ -40,6 +40,7 @@ def create(request: Request):
         key = secrets.token_urlsafe(32)
         rows[id] = {
             "key": key,
+            "display_mask": secrets.token_bytes(32),
             "created": now,
             "events": [],
             "done": False,
@@ -58,6 +59,13 @@ def authorize(id, key):
     ):
         raise HTTPException(404, "Live operation not found.")
     return row
+
+
+@router.get("/{id}")
+async def snapshot(id: str, request: Request):
+    with lock:
+        row = authorize(id, request.headers.get("x-trace-key", ""))
+        return {"events": list(row["events"]), "done": row["done"]}
 
 
 @router.get("/{id}/events")
@@ -148,6 +156,18 @@ def step(name, category, explanation, **facts):
         )
     finally:
         parent.reset(token)
+
+
+def detail(**facts):
+    if parent.get():
+        emit("update", id=parent.get(), facts=facts)
+
+
+def protected_fingerprint(value):
+    row = current.get()
+    if not row:
+        return None
+    return hmac.new(row["display_mask"], value, "sha256").hexdigest()[:16]
 
 
 def observed(name, category, explanation, **facts):

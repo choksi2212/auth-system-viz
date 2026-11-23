@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from app.db.base import Base
 from app.db.session import get_db
 from app.core.dependencies import get_current_user
@@ -86,7 +87,9 @@ def event(db, user, action, name):
             ).encode(),
             hashlib.sha256,
         ).hexdigest()
-        progress["chain_digest"] = e.digest
+        progress.update(
+            chain_digest=e.digest, previous_chain_digest=e.previous, event_action=action
+        )
     db.add(e)
 
 
@@ -156,16 +159,46 @@ async def upload(
     ) as progress:
         nonce = os.urandom(12)
         progress.update(nonce_bytes=len(nonce), nonce_hex=nonce.hex())
+    # Reconstruct only public counter/output pairs, never secret AES round states.
+    # This calculation is checked against the bytes returned by AESGCM below.
+    with step(
+        "Calculate the first counter blocks",
+        "crypto",
+        "GCM encrypts nonce-derived counter blocks with AES. Their outputs are XORed with file bytes. This first-block calculation is checked against the actual GCM ciphertext.",
+    ) as progress:
+        preview_size = min(len(raw), 32)
+        counters = b"".join(
+            nonce + n.to_bytes(4, "big")
+            for n in range(2, 2 + (preview_size + 15) // 16)
+        )
+        encryptor = Cipher(algorithms.AES(key), modes.ECB()).encryptor()
+        stream_preview = (encryptor.update(counters) + encryptor.finalize())[
+            :preview_size
+        ]
+        progress.update(
+            counter_blocks=[
+                counters[i : i + 16].hex() for i in range(0, len(counters), 16)
+            ],
+            preview_bytes=preview_size,
+            aes_rounds=14,
+        )
     with step(
         "Encrypt document with AES-GCM",
         "crypto",
         "AES-256-GCM encrypts the bytes and appends an authentication tag. Associated data binds the ciphertext to this document and owner.",
     ) as progress:
         cipher = AESGCM(key).encrypt(nonce, raw, (id + str(user.id)).encode())
+        xor_preview = bytes(a ^ b for a, b in zip(raw[:preview_size], stream_preview))
+        if not hmac.compare_digest(xor_preview, cipher[:preview_size]):
+            raise ValueError("AES-GCM first-block cross-check failed")
         progress.update(
             ciphertext_bytes=len(cipher) - 16,
             tag_hex=cipher[-16:].hex(),
             ciphertext_preview=cipher[:24].hex(),
+            ciphertext_window=cipher[:preview_size].hex(),
+            xor_verified=True,
+            document_id=id,
+            aad_bytes=len((id + str(user.id)).encode()),
             owner_bound=True,
         )
     with step(
@@ -243,14 +276,29 @@ def decrypt(d):
                     label=None,
                 ),
             )
-            progress["key_bits"] = len(key) * 8
+            progress.update(
+                key_bits=len(key) * 8,
+                fingerprint=hashlib.sha256(key).hexdigest()[:16],
+                wrapped_preview=base64.b64decode(d.wrapped_key)[:24].hex(),
+                rsa_bits=KEY.key_size,
+            )
         with step(
             "Read encrypted envelope",
             "storage",
             "Read the persisted nonce, ciphertext and authentication tag.",
         ) as progress:
             data = (STORE / d.id).read_bytes()
-            progress["stored_bytes"] = len(data)
+            progress.update(
+                stored_bytes=len(data),
+                nonce_hex=data[:12].hex(),
+                ciphertext_window=data[12:-16][:32].hex(),
+                tag_hex=data[-16:].hex(),
+                ciphertext_bytes=len(data) - 28,
+                counter_blocks=[
+                    (data[:12] + i.to_bytes(4, "big")).hex()
+                    for i in range(2, 2 + (min(len(data) - 28, 32) + 15) // 16)
+                ],
+            )
         with step(
             "Authenticate and decrypt",
             "crypto",
@@ -272,7 +320,11 @@ def decrypt(d):
                 ),
                 hashes.SHA256(),
             )
-            progress["verified"] = True
+            progress.update(
+                verified=True,
+                signature_preview=base64.b64decode(d.signature)[:24].hex(),
+                signature_bytes=len(base64.b64decode(d.signature)),
+            )
         with step(
             "Compare content fingerprint",
             "crypto",

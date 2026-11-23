@@ -1,4 +1,6 @@
 import secrets
+import bcrypt
+import hmac
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -9,7 +11,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.core.config import settings
-from app.core.observation import observed
+from app.core.observation import observed, detail, protected_fingerprint, current
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -29,7 +31,13 @@ limiter = Limiter(
     work_factor=12,
 )
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    hashed = pwd_context.hash(password)
+    detail(
+        verifier_fingerprint=protected_fingerprint(hashed.encode()),
+        bcrypt_cost=int(hashed.split("$")[2]),
+        password_stored=False,
+    )
+    return hashed
 
 
 @observed(
@@ -40,7 +48,18 @@ def hash_password(password: str) -> str:
     result="No password or stored hash is exposed",
 )
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    matched = pwd_context.verify(plain, hashed)
+    if current.get():
+        candidate = bcrypt.hashpw(plain.encode()[:72], hashed.encode())
+        if hmac.compare_digest(candidate, hashed.encode()) != matched:
+            raise ValueError("Password comparison cross-check failed")
+        detail(
+            candidate_fingerprint=protected_fingerprint(candidate),
+            stored_fingerprint=protected_fingerprint(hashed.encode()),
+            bcrypt_cost=int(hashed.split("$")[2]),
+            comparison_verified=True,
+        )
+    return matched
 
 
 @observed(

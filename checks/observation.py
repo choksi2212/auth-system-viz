@@ -105,12 +105,23 @@ try:
             r = f.result()
     check("events arrive before login response completes", first_before_response)
     check("real login succeeds", r.status_code == 200)
+    replay = c.get("/observe/" + t["id"], headers={"X-Trace-Key": t["key"]})
+    check("replay returns the exact completed event sequence", replay.status_code == 200 and replay.json() == {"events": events, "done": True})
+    check("replay requires its capability", c.get("/observe/" + t["id"]).status_code == 404)
+    check("replay rejects a different capability", c.get("/observe/" + t["id"], headers={"X-Trace-Key": "wrong"}).status_code == 404)
+    check("replay excludes its private display mask", "display_mask" not in replay.text and t["key"] not in replay.text)
     tokens = r.json()
     h = {"Authorization": "Bearer " + tokens["access_token"]}
     s = stages(events)
     check(
         "bcrypt comparison is actually timed",
         s["Compare password securely"]["duration_ms"] > 0,
+    )
+    comparison = s["Compare password securely"]["facts"]
+    check(
+        "displayed verifier fingerprints represent actual matching candidates",
+        comparison["candidate_fingerprint"] == comparison["stored_fingerprint"]
+        and comparison["comparison_verified"] is True,
     )
     check(
         "token signing and session storage are observed",
@@ -185,6 +196,29 @@ try:
         "ciphertext preview equals actual stored ciphertext",
         s["Encrypt document with AES-GCM"]["facts"]["ciphertext_preview"]
         == stored[12:36].hex(),
+    )
+    counter = s["Calculate the first counter blocks"]["facts"]
+    check(
+        "first AES-GCM counter is the real nonce followed by integer two",
+        counter["counter_blocks"][0] == stored[:12].hex() + "00000002",
+    )
+    check(
+        "second counter increments to integer three",
+        counter["counter_blocks"][1] == stored[:12].hex() + "00000003",
+    )
+    check(
+        "backend independently verifies the displayed XOR calculation",
+        s["Encrypt document with AES-GCM"]["facts"]["xor_verified"] is True,
+    )
+    check(
+        "byte inspection window equals the actual stored file prefix",
+        s["Encrypt document with AES-GCM"]["facts"]["ciphertext_window"]
+        == stored[12:-16][:32].hex(),
+    )
+    check(
+        "plaintext and reconstructable counter output stay out of server traces",
+        "keystream_preview" not in json.dumps(e)
+        and raw[:32].hex() not in json.dumps(e),
     )
     check(
         "authentication tag equals actual stored tag",

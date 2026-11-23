@@ -14,6 +14,6 @@ Files use AES-256-GCM with individual random keys, RSA-3072 OAEP key wrapping an
 
 The executable checks are in `checks/`. Browser checks: `cd web; npm ci; npx playwright install chromium; npx playwright test`. Existing run evidence is in `evidence/`.
 
-Actions open a live 3D process view. Orbit the scene, select a numbered node, or use the execution log to inspect actual server timings and safe cryptographic outputs. Background profile, document-index and activity reads are available in the operation selector.
+Actions open the transformation studio. Select actual file bytes to inspect AES-GCM's counter/XOR calculation in hex and bits, view wrapped-key and signature outputs, or inspect the stored envelope. Login displays protected fingerprints derived from the actual candidate and stored verifiers. Background reads remain available in the operation selector.
 
 The process view uses a capability-protected server event stream, with bounded five-minute server retention. It shows real function calls and measured outputs, not invented cipher rounds. Passwords, OTPs, raw credentials and private keys are excluded. Recovery flows suppress account-specific details.

@@ -26,7 +26,15 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.observation import observed, commit, privacy_flow, step, private_steps
+from app.core.observation import (
+    observed,
+    commit,
+    privacy_flow,
+    step,
+    private_steps,
+    detail,
+    protected_fingerprint,
+)
 from app.core.security import (
     create_2fa_pending_token,
     create_access_token,
@@ -59,7 +67,9 @@ _UNKNOWN_ACCOUNT_VERIFIER = hash_password(secrets.token_urlsafe(32))
     "SHA-256 converts a random credential into a database lookup digest. The raw credential is never stored in the trace.",
 )
 def _hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    detail(credential_fingerprint=protected_fingerprint(bytes.fromhex(digest)))
+    return digest
 
 
 @observed(
@@ -69,10 +79,12 @@ def _hash_token(token: str) -> str:
 )
 def _verify_otp_hash(otp: str, stored_hash: str) -> bool:
     """Constant-time comparison to prevent timing attacks."""
-    return hmac.compare_digest(
-        hashlib.sha256(otp.encode()).hexdigest(),
-        stored_hash,
+    candidate = hashlib.sha256(otp.encode()).hexdigest()
+    detail(
+        candidate_fingerprint=protected_fingerprint(bytes.fromhex(candidate)),
+        stored_fingerprint=protected_fingerprint(bytes.fromhex(stored_hash)),
     )
+    return hmac.compare_digest(candidate, stored_hash)
 
 
 @observed(
@@ -254,17 +266,16 @@ def login(payload: LoginRequest, db: Session) -> dict[str, Any]:
     commit(db)
 
     # Email must be verified before issuing tokens
-    if not user.is_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Please verify your email address before logging in.",
-        )
-
     with step(
         "Check email verification and second-factor policy",
         "identity",
         "Only verified accounts may continue. The configured second-factor policy chooses a challenge or direct session.",
     ) as result:
+        if not user.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Please verify your email address before logging in.",
+            )
         result["second_factor"] = "required" if user.is_2fa_enabled else "not enabled"
 
     # ── 2FA path ──────────────────────────────────────────────────────────────
@@ -407,6 +418,7 @@ def refresh_access_token(refresh_token: str, db: Session) -> tuple[str, str]:
     # Issue a fresh pair
     now = datetime.now(timezone.utc)
     access_token, raw_refresh = _create_session(old_session.user_id, now, db)
+    detail(previous_revoked=bool(old_session.is_revoked), rotated=True)
     return access_token, raw_refresh
 
 
@@ -427,6 +439,10 @@ def logout(refresh_token: str, db: Session) -> None:
     if session and not session.is_revoked:
         session.is_revoked = True
         commit(db)
+    detail(
+        session_found=bool(session),
+        session_revoked=bool(session and session.is_revoked),
+    )
 
 
 # ─── Password Reset ───────────────────────────────────────────────────────────

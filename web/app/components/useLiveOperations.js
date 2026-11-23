@@ -30,6 +30,7 @@ export function useLiveOperations() {
       (path === "/vault/documents" && options.method === "POST");
     if (!meaningful) return fetch(url, options);
     let trace;
+    let sent = false;
     try {
       const start = await fetch("/api/observe/traces", { method: "POST" });
       if (!start.ok) throw Error("Live event channel unavailable");
@@ -63,10 +64,26 @@ export function useLiveOperations() {
                   : options.method === "DELETE"
                     ? "Delete document"
                     : "Encrypt document";
+      let local = null;
+      if (options.body instanceof FormData) {
+        const file = options.body.get("file");
+        if (file instanceof File) {
+          const bytes = new Uint8Array(await file.slice(0, 32).arrayBuffer());
+          local = {
+            hex: Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+              "",
+            ),
+            name: file.name,
+            size: file.size,
+            source: "Selected file in this browser",
+          };
+        }
+      }
       setOperations((all) =>
         [
           {
             id: trace.id,
+            local,
             title,
             path,
             status: "waiting",
@@ -83,13 +100,61 @@ export function useLiveOperations() {
       }
       const controller = new AbortController();
       controllers.current.add(controller);
-      const stream = await fetch(`/api/observe/${trace.id}/events`, {
-        headers: { "X-Trace-Key": trace.key },
-        signal: controller.signal,
+      // Dispatch the action before opening its replayable event stream, so
+      // passive streams cannot reserve every browser connection ahead of it.
+      sent = true;
+      const request = fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+          "X-Trace-Id": trace.id,
+          "X-Trace-Key": trace.key,
+        },
       });
-      if (!stream.ok) throw Error("Live event channel unavailable");
+      const ingest = (event) =>
+        update(trace.id, (op) => {
+          if (op.events.some((e) => e.seq === event.seq)) return op;
+          const next = { ...op, events: [...op.events, event] };
+          if (event.type === "request") next.status = "running";
+          if (event.type === "step") next.steps = [...op.steps, event];
+          if (event.type === "update")
+            next.steps = op.steps.map((s) =>
+              s.id === event.id
+                ? {
+                    ...s,
+                    ...event,
+                    facts: { ...s.facts, ...event.facts },
+                    at_ms: s.at_ms,
+                  }
+                : s,
+            );
+          if (event.type === "finished") {
+            next.status = event.status;
+            next.duration = event.at_ms;
+            next.http = event.http_status;
+            next.channelError = null;
+          }
+          if (event.type === "expired")
+            next.channelError = "The live channel expired.";
+          return next;
+        });
+      const reconcile = async () => {
+        const res = await fetch(`/api/observe/${trace.id}`, {
+          headers: { "X-Trace-Key": trace.key },
+          signal: controller.signal,
+        });
+        if (!res.ok) throw Error("Live event snapshot unavailable");
+        const snapshot = await res.json();
+        snapshot.events.forEach(ingest);
+        return snapshot.done;
+      };
       (async () => {
         try {
+          const stream = await fetch(`/api/observe/${trace.id}/events`, {
+            headers: { "X-Trace-Key": trace.key },
+            signal: controller.signal,
+          });
+          if (!stream.ok) throw Error("Live event channel unavailable");
           const reader = stream.body.getReader(),
             decoder = new TextDecoder();
           let pending = "";
@@ -103,30 +168,11 @@ export function useLiveOperations() {
               pending = pending.slice(boundary + 2);
               if (!frame.startsWith("data: ")) continue;
               const event = JSON.parse(frame.slice(6));
-              update(trace.id, (op) => {
-                const next = { ...op, events: [...op.events, event] };
-                if (event.type === "request") next.status = "running";
-                if (event.type === "step") next.steps = [...op.steps, event];
-                if (event.type === "update")
-                  next.steps = op.steps.map((s) =>
-                    s.id === event.id
-                      ? {
-                          ...s,
-                          ...event,
-                          facts: { ...s.facts, ...event.facts },
-                          at_ms: s.at_ms,
-                        }
-                      : s,
-                  );
-                if (event.type === "finished") {
-                  next.status = event.status;
-                  next.duration = event.at_ms;
-                  next.http = event.http_status;
-                }
-                if (event.type === "expired")
-                  next.channelError = "The live channel expired.";
-                return next;
-              });
+              ingest(event);
+              if (event.type === "finished" || event.type === "expired") {
+                await reader.cancel();
+                return;
+              }
             }
           }
         } catch (e) {
@@ -137,18 +183,42 @@ export function useLiveOperations() {
                 "Event stream disconnected. No steps have been inferred.",
             }));
         } finally {
+          // Replay the authoritative event buffer after EOF or a disconnect.
+          // Completion is taken only from a real server finished event.
+          try {
+            await request.catch(() => {});
+            for (
+              let retry = 0;
+              retry < 20 && !controller.signal.aborted;
+              retry++
+            ) {
+              if (await reconcile()) break;
+              await new Promise((resolve) => setTimeout(resolve, 250));
+            }
+          } catch (_) {}
           controllers.current.delete(controller);
         }
       })();
-      return fetch(url, {
-        ...options,
-        headers: {
-          ...options.headers,
-          "X-Trace-Id": trace.id,
-          "X-Trace-Key": trace.key,
-        },
-      });
+      const response = await request;
+      if (path.endsWith("/download") && response.ok) {
+        const reader = response.clone().body.getReader();
+        const { value } = await reader.read();
+        reader.cancel().catch(() => {});
+        const bytes = (value || new Uint8Array()).slice(0, 32);
+        update(trace.id, (op) => ({
+          ...op,
+          local: {
+            hex: Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+              "",
+            ),
+            source: "Verified download in this browser",
+            size: Number(response.headers.get("content-length")),
+          },
+        }));
+      }
+      return response;
     } catch (e) {
+      if (sent) throw e;
       if (trace)
         update(trace.id, (op) => ({
           ...op,

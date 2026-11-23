@@ -11,7 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { gsap } from "gsap";
-import ExecutionScene from "./ExecutionScene";
+import TransformationView from "./TransformationView";
 const categoryNames = {
   request: "Request",
   identity: "Identity",
@@ -58,17 +58,17 @@ export default function LiveOperations({ live }) {
   useEffect(() => {
     if (!live.open) return;
     const previous = document.activeElement;
-    if (matchMedia("(max-width:900px)").matches)
-      panel.current?.querySelector("button")?.focus();
+    panel.current?.querySelector("button")?.focus();
     const onKey = (event) => {
       if (event.key === "Escape") {
         event.stopPropagation();
         live.setOpen(false);
         return;
       }
-      if (event.key !== "Tab" || !matchMedia("(max-width:900px)").matches)
-        return;
-      const items = panel.current?.querySelectorAll("button,select,a[href]");
+      if (event.key !== "Tab") return;
+      const items = panel.current?.querySelectorAll(
+        "button,select,input,summary,a[href]",
+      );
       if (!items?.length) return;
       const first = items[0],
         last = items[items.length - 1];
@@ -89,7 +89,9 @@ export default function LiveOperations({ live }) {
   function exportTrace() {
     if (!op) return;
     const url = URL.createObjectURL(
-      new Blob([JSON.stringify(op, null, 2)], { type: "application/json" }),
+      new Blob([JSON.stringify({ ...op, local: undefined }, null, 2)], {
+        type: "application/json",
+      }),
     );
     const a = document.createElement("a");
     a.href = url;
@@ -110,12 +112,14 @@ export default function LiveOperations({ live }) {
         <section
           className="live-panel"
           ref={panel}
+          role="dialog"
+          aria-modal="true"
           aria-label="Live backend visualization"
         >
           <div className="live-top">
             <div>
               <span className="eyebrow">UNDER THE SURFACE</span>
-              <h2>See it happen.</h2>
+              <h2>Inside the operation.</h2>
             </div>
             <button
               className="live-close"
@@ -204,89 +208,85 @@ export default function LiveOperations({ live }) {
                 </p>
               </div>
             )}
-            <ExecutionScene
-              steps={steps}
-              selected={selected?.id}
-              onSelect={selectStep}
-            />
-            <p className="live-honesty">
-              Each node is a step observed on the server. Fast operations finish
-              in milliseconds; timings are never slowed down for the animation.
-              Parent steps include their child calls.
-            </p>
+            <TransformationView op={op} operations={live.operations} />
             {op?.channelError && (
               <div className="alert" role="status">
                 {op.channelError}
               </div>
             )}
-            {selected && (
-              <div className={"step-inspection " + selected.status}>
-                <div className="step-inspection-heading">
-                  <span>
-                    {categoryNames[selected.category] || selected.category}
-                  </span>
-                  <b>{duration(selected.duration_ms)}</b>
+            <details className="technical-details">
+              <summary>
+                Measured execution log · {steps.length} server steps
+              </summary>
+              {selected && (
+                <div className={"step-inspection " + selected.status}>
+                  <div className="step-inspection-heading">
+                    <span>
+                      {categoryNames[selected.category] || selected.category}
+                    </span>
+                    <b>{duration(selected.duration_ms)}</b>
+                  </div>
+                  <h3>{selected.name}</h3>
+                  <p>{selected.explanation}</p>
+                  {Object.keys(selected.facts || {}).length > 0 && (
+                    <dl>
+                      {Object.entries(selected.facts).map(([key, value]) => (
+                        <div key={key}>
+                          <dt>{key.replaceAll("_", " ")}</dt>
+                          <dd>
+                            {typeof value === "boolean"
+                              ? value
+                                ? "Yes"
+                                : "No"
+                              : String(value)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
                 </div>
-                <h3>{selected.name}</h3>
-                <p>{selected.explanation}</p>
-                {Object.keys(selected.facts || {}).length > 0 && (
-                  <dl>
-                    {Object.entries(selected.facts).map(([key, value]) => (
-                      <div key={key}>
-                        <dt>{key.replaceAll("_", " ")}</dt>
-                        <dd>
-                          {typeof value === "boolean"
-                            ? value
-                              ? "Yes"
-                              : "No"
-                            : String(value)}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-              </div>
-            )}
-            {steps.length > 0 && (
-              <div className="execution-timeline">
-                <div className="timeline-heading">
-                  <span>EXECUTION LOG</span>
-                  <span>ACTUAL SERVER TIMESTAMPS</span>
+              )}
+              {steps.length > 0 && (
+                <div className="execution-timeline">
+                  <div className="timeline-heading">
+                    <span>EXECUTION LOG</span>
+                    <span>ACTUAL SERVER TIMESTAMPS</span>
+                  </div>
+                  {steps.map((s, i) => (
+                    <button
+                      className={
+                        "execution-step " +
+                        s.status +
+                        (selected?.id === s.id ? " selected" : "")
+                      }
+                      key={s.id}
+                      onClick={() => selectStep(s.id)}
+                    >
+                      <span className="step-number">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span className="step-copy">
+                        <b>{s.name}</b>
+                        <small>
+                          +{duration(s.at_ms)} ·{" "}
+                          {categoryNames[s.category] || s.category}
+                        </small>
+                      </span>
+                      <span className="step-result">
+                        {s.status === "running" ? (
+                          <Loader2 size={13} className="spin" />
+                        ) : s.status === "rejected" ? (
+                          <X size={13} />
+                        ) : (
+                          <Check size={13} />
+                        )}
+                        <small>{duration(s.duration_ms)}</small>
+                      </span>
+                    </button>
+                  ))}
                 </div>
-                {steps.map((s, i) => (
-                  <button
-                    className={
-                      "execution-step " +
-                      s.status +
-                      (selected?.id === s.id ? " selected" : "")
-                    }
-                    key={s.id}
-                    onClick={() => selectStep(s.id)}
-                  >
-                    <span className="step-number">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span className="step-copy">
-                      <b>{s.name}</b>
-                      <small>
-                        +{duration(s.at_ms)} ·{" "}
-                        {categoryNames[s.category] || s.category}
-                      </small>
-                    </span>
-                    <span className="step-result">
-                      {s.status === "running" ? (
-                        <Loader2 size={13} className="spin" />
-                      ) : s.status === "rejected" ? (
-                        <X size={13} />
-                      ) : (
-                        <Check size={13} />
-                      )}
-                      <small>{duration(s.duration_ms)}</small>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+              )}
+            </details>
             <div className="trace-privacy">
               <ShieldCheck size={15} />
               <p>
