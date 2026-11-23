@@ -1,0 +1,107 @@
+{
+  "source": "Actual message received in connected Gmail account",
+  "verification_status": 200,
+  "events": [
+    {
+      "type": "request",
+      "seq": 1,
+      "at_ms": 0.004,
+      "name": "POST /auth/verify-email"
+    },
+    {
+      "type": "step",
+      "seq": 2,
+      "at_ms": 0.024,
+      "id": "c5b87712832d",
+      "parent": null,
+      "name": "Process API request",
+      "category": "request",
+      "explanation": "FastAPI runs validation, dependencies, the endpoint, and any queued background work.",
+      "status": "running",
+      "facts": {
+        "method": "POST"
+      }
+    },
+    {
+      "type": "step",
+      "seq": 3,
+      "at_ms": 0.931,
+      "id": "aa2a253a90d4",
+      "parent": "c5b87712832d",
+      "name": "Verify email ownership",
+      "category": "identity",
+      "explanation": "Match the token digest, purpose, expiry, and unused status; then consume it and verify the account.",
+      "status": "running",
+      "facts": {}
+    },
+    {
+      "type": "step",
+      "seq": 4,
+      "at_ms": 1.064,
+      "id": "8caf12731428",
+      "parent": "aa2a253a90d4",
+      "name": "Hash one-time credential",
+      "category": "crypto",
+      "explanation": "SHA-256 converts a random credential into a database lookup digest. The raw credential is never stored in the trace.",
+      "status": "running",
+      "facts": {}
+    },
+    {
+      "type": "update",
+      "seq": 5,
+      "at_ms": 1.091,
+      "id": "8caf12731428",
+      "status": "complete",
+      "duration_ms": 0.022,
+      "facts": {}
+    },
+    {
+      "type": "step",
+      "seq": 6,
+      "at_ms": 5.117,
+      "id": "51ab50ea066d",
+      "parent": "aa2a253a90d4",
+      "name": "Commit database transaction",
+      "category": "storage",
+      "explanation": "PostgreSQL commits the pending changes atomically.",
+      "status": "running",
+      "facts": {}
+    },
+    {
+      "type": "update",
+      "seq": 7,
+      "at_ms": 16.116,
+      "id": "51ab50ea066d",
+      "status": "complete",
+      "duration_ms": 10.98,
+      "facts": {}
+    },
+    {
+      "type": "update",
+      "seq": 8,
+      "at_ms": 17.446,
+      "id": "aa2a253a90d4",
+      "status": "complete",
+      "duration_ms": 16.506,
+      "facts": {}
+    },
+    {
+      "type": "update",
+      "seq": 9,
+      "at_ms": 18.824,
+      "id": "c5b87712832d",
+      "status": "complete",
+      "duration_ms": 18.794,
+      "facts": {
+        "http_status": 200
+      }
+    },
+    {
+      "type": "finished",
+      "seq": 10,
+      "at_ms": 18.828,
+      "status": "complete",
+      "http_status": 200
+    }
+  ]
+}

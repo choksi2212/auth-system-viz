@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { gsap } from "gsap";
+import { useLiveOperations } from "./components/useLiveOperations";
+import LiveOperations from "./components/LiveOperations";
 import {
   ArrowUpRight,
   Plus,
@@ -21,6 +23,7 @@ import {
   Loader2,
 } from "lucide-react";
 export default function Home() {
+  const live = useLiveOperations();
   const [token, T] = useState(null),
     [user, U] = useState(null),
     [mode, M] = useState("login"),
@@ -36,7 +39,7 @@ export default function Home() {
     [ready, R] = useState(false);
   const picker = useRef();
   async function request(path, options = {}, at = token) {
-    const res = await fetch("/api" + path, {
+    const res = await live.traceFetch("/api" + path, {
       ...options,
       headers: {
         ...(options.body instanceof FormData
@@ -59,11 +62,15 @@ export default function Home() {
   async function refresh() {
     let rt = localStorage.getItem("vellum_rt");
     if (!rt) return null;
-    const res = await fetch("/api/auth/refresh", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: rt }),
-    });
+    const res = await live.traceFetch(
+      "/api/auth/refresh",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: rt }),
+      },
+      true,
+    );
     if (!res.ok) {
       localStorage.removeItem("vellum_rt");
       return null;
@@ -301,7 +308,7 @@ export default function Home() {
       </div>
     );
   return (
-    <>
+    <div className={live.open ? "application observing" : "application"}>
       {!user ? (
         <main className="auth">
           <div className="auth-story">
@@ -311,10 +318,8 @@ export default function Home() {
             <div className="story-copy">
               <span className="eyebrow">A PRIVATE PLACE FOR WHAT MATTERS</span>
               <h1>
-                Some things{" "}
-                <br />
-                are yours.{" "}
-                <br />
+                Some things <br />
+                are yours. <br />
                 <em>Keep them so.</em>
               </h1>
               <p>
@@ -618,7 +623,10 @@ export default function Home() {
               {notice && (
                 <div className="notice" role="status">
                   {notice}
-                  <button aria-label="Dismiss notification" onClick={() => N("")}>
+                  <button
+                    aria-label="Dismiss notification"
+                    onClick={() => N("")}
+                  >
                     <X size={15} />
                   </button>
                 </div>
@@ -634,7 +642,9 @@ export default function Home() {
                     <div>
                       <span>STORAGE USED</span>
                       <strong>
-                        {size(docs.reduce((a, d) => a + Number(d.size) + 28, 0))}
+                        {size(
+                          docs.reduce((a, d) => a + Number(d.size) + 28, 0),
+                        )}
                       </strong>
                       <p>Encrypted document bytes</p>
                     </div>
@@ -978,6 +988,7 @@ export default function Home() {
           )}
         </div>
       )}
-    </>
+      <LiveOperations live={live} />
+    </div>
   );
 }

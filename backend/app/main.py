@@ -11,6 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app.api import auth, users, vault
+from app.core.observation import router as observation_router, TraceMiddleware
 from app.core.config import settings
 from app.core.security import limiter
 from app.db.base import Base
@@ -150,6 +151,8 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(vault.router)
+app.include_router(observation_router)
+app.add_middleware(TraceMiddleware)
 
 
 # ── Exception handlers ────────────────────────────────────────────────────────

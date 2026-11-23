@@ -1,5 +1,6 @@
 export default {
   output: "standalone",
+  compress: false,
   experimental: { proxyClientMaxBodySize: "25mb" },
   poweredByHeader: false,
   async headers() {

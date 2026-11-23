@@ -1,0 +1,87 @@
+PASS verification policy is observed
+PASS events arrive before login response completes
+PASS real login succeeds
+PASS bcrypt comparison is actually timed
+PASS token signing and session storage are observed
+PASS events have ordered server sequence numbers
+PASS finished event matches actual HTTP result
+PASS password and access credentials are absent
+PASS wrong trace capability rejected
+PASS missing trace capability rejected
+PASS trace cannot be rebound to another operation
+PASS incorrect password comparison appears rejected
+PASS unknown accounts perform real bcrypt work without revealing membership
+PASS password comparison publishes only a safe boolean
+PASS traced encryption succeeds
+PASS nonce in trace equals stored nonce
+PASS ciphertext preview equals actual stored ciphertext
+PASS authentication tag equals actual stored tag
+PASS stored byte count equals physical envelope
+PASS wrapped key preview equals actual wrapped key
+PASS signature preview equals actual signature
+PASS SHA256 equals persisted digest
+PASS AES key itself is never included
+PASS decryption trace recovers exact original bytes
+PASS download runs real signature verification
+PASS corrupt ciphertext produces real rejected stage
+PASS signature step is not fabricated after decryption fails
+PASS 2FA policy database change is observed
+PASS real OTP challenge and digest comparison are observed
+PASS OTP is absent from event data
+PASS refresh rotation is observed
+PASS profile reads are observable without exposing profile values
+PASS document index counts are measured from actual query results
+PASS activity read counts are measured from actual query results
+PASS activity verification is observed
+PASS deletion event matches physical removal
+PASS recovery keeps account-specific details private
+PASS resend keeps account-specific details private
+PASS password reset and bcrypt hashing are observed
+PASS new password and reset token are absent
+PASS logout revocation is observed
+{
+  "passed": 41,
+  "checks": [
+    "verification policy is observed",
+    "events arrive before login response completes",
+    "real login succeeds",
+    "bcrypt comparison is actually timed",
+    "token signing and session storage are observed",
+    "events have ordered server sequence numbers",
+    "finished event matches actual HTTP result",
+    "password and access credentials are absent",
+    "wrong trace capability rejected",
+    "missing trace capability rejected",
+    "trace cannot be rebound to another operation",
+    "incorrect password comparison appears rejected",
+    "unknown accounts perform real bcrypt work without revealing membership",
+    "password comparison publishes only a safe boolean",
+    "traced encryption succeeds",
+    "nonce in trace equals stored nonce",
+    "ciphertext preview equals actual stored ciphertext",
+    "authentication tag equals actual stored tag",
+    "stored byte count equals physical envelope",
+    "wrapped key preview equals actual wrapped key",
+    "signature preview equals actual signature",
+    "SHA256 equals persisted digest",
+    "AES key itself is never included",
+    "decryption trace recovers exact original bytes",
+    "download runs real signature verification",
+    "corrupt ciphertext produces real rejected stage",
+    "signature step is not fabricated after decryption fails",
+    "2FA policy database change is observed",
+    "real OTP challenge and digest comparison are observed",
+    "OTP is absent from event data",
+    "refresh rotation is observed",
+    "profile reads are observable without exposing profile values",
+    "document index counts are measured from actual query results",
+    "activity read counts are measured from actual query results",
+    "activity verification is observed",
+    "deletion event matches physical removal",
+    "recovery keeps account-specific details private",
+    "resend keeps account-specific details private",
+    "password reset and bcrypt hashing are observed",
+    "new password and reset token are absent",
+    "logout revocation is observed"
+  ]
+}

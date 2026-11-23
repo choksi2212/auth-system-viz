@@ -1,0 +1,204 @@
+PASS email verification accepts real token 0
+PASS verification token cannot replay 0
+PASS password login 0
+PASS email verification accepts real token 1
+PASS verification token cannot replay 1
+PASS password login 1
+PASS anonymous vault rejected
+PASS malformed JWT rejected
+PASS real binary upload
+PASS ciphertext differs from plaintext
+PASS encrypted file has GCM envelope length
+PASS owner listing contains file
+PASS wrapped key not disclosed
+PASS download byte-for-byte exact
+PASS signature verification succeeds
+PASS cross-account GET rejected
+PASS cross-account POST rejected
+PASS cross-account DELETE rejected
+PASS oversized upload rejected
+PASS modified ciphertext blocks download
+PASS modified ciphertext blocks verification
+PASS forged signature rejected
+PASS changed database digest rejected
+PASS corrupted wrapped key rejected
+PASS identical plaintext receives different encryption
+PASS delete real document
+PASS deleted bytes removed
+PASS deleted document not downloadable
+PASS audit chain validates
+PASS altered audit event detected
+PASS audit restores after original restored
+PASS 2FA enable
+PASS wrong OTP rejected
+PASS real OTP accepted
+PASS OTP replay rejected
+PASS pending JWT cannot access vault
+PASS refresh rotation
+PASS old refresh replay rejected
+PASS old access revoked after rotation
+PASS rotated access works
+PASS logout works
+PASS logged-out access rejected
+PASS password reset
+PASS reset invalidates existing access
+PASS reset replay rejected
+PASS long bcrypt password rejected
+PASS invalid OTP format rejected
+PASS invalid reset token rejected
+PASS SQL injection remains data
+PASS concurrent refresh allows exactly one winner
+PASS five wrong passwords lock account
+PASS locked account rejects correct password
+{
+  "passed": 52,
+  "checks": [
+    "email verification accepts real token 0",
+    "verification token cannot replay 0",
+    "password login 0",
+    "email verification accepts real token 1",
+    "verification token cannot replay 1",
+    "password login 1",
+    "anonymous vault rejected",
+    "malformed JWT rejected",
+    "real binary upload",
+    "ciphertext differs from plaintext",
+    "encrypted file has GCM envelope length",
+    "owner listing contains file",
+    "wrapped key not disclosed",
+    "download byte-for-byte exact",
+    "signature verification succeeds",
+    "cross-account GET rejected",
+    "cross-account POST rejected",
+    "cross-account DELETE rejected",
+    "oversized upload rejected",
+    "modified ciphertext blocks download",
+    "modified ciphertext blocks verification",
+    "forged signature rejected",
+    "changed database digest rejected",
+    "corrupted wrapped key rejected",
+    "identical plaintext receives different encryption",
+    "delete real document",
+    "deleted bytes removed",
+    "deleted document not downloadable",
+    "audit chain validates",
+    "altered audit event detected",
+    "audit restores after original restored",
+    "2FA enable",
+    "wrong OTP rejected",
+    "real OTP accepted",
+    "OTP replay rejected",
+    "pending JWT cannot access vault",
+    "refresh rotation",
+    "old refresh replay rejected",
+    "old access revoked after rotation",
+    "rotated access works",
+    "logout works",
+    "logged-out access rejected",
+    "password reset",
+    "reset invalidates existing access",
+    "reset replay rejected",
+    "long bcrypt password rejected",
+    "invalid OTP format rejected",
+    "invalid reset token rejected",
+    "SQL injection remains data",
+    "concurrent refresh allows exactly one winner",
+    "five wrong passwords lock account",
+    "locked account rejects correct password"
+  ]
+}
+PASS verification policy is observed
+PASS events arrive before login response completes
+PASS real login succeeds
+PASS bcrypt comparison is actually timed
+PASS token signing and session storage are observed
+PASS events have ordered server sequence numbers
+PASS finished event matches actual HTTP result
+PASS password and access credentials are absent
+PASS wrong trace capability rejected
+PASS missing trace capability rejected
+PASS trace cannot be rebound to another operation
+PASS incorrect password comparison appears rejected
+PASS unknown accounts perform real bcrypt work without revealing membership
+PASS password comparison publishes only a safe boolean
+PASS traced encryption succeeds
+PASS nonce in trace equals stored nonce
+PASS ciphertext preview equals actual stored ciphertext
+PASS authentication tag equals actual stored tag
+PASS stored byte count equals physical envelope
+PASS wrapped key preview equals actual wrapped key
+PASS signature preview equals actual signature
+PASS SHA256 equals persisted digest
+PASS AES key itself is never included
+PASS decryption trace recovers exact original bytes
+PASS download runs real signature verification
+PASS corrupt ciphertext produces real rejected stage
+PASS signature step is not fabricated after decryption fails
+PASS 2FA policy database change is observed
+PASS real OTP challenge and digest comparison are observed
+PASS OTP is absent from event data
+PASS refresh rotation is observed
+PASS profile reads are observable without exposing profile values
+PASS document index counts are measured from actual query results
+PASS activity read counts are measured from actual query results
+PASS activity verification is observed
+PASS deletion event matches physical removal
+PASS recovery keeps account-specific details private
+PASS resend keeps account-specific details private
+PASS password reset and bcrypt hashing are observed
+PASS new password and reset token are absent
+PASS logout revocation is observed
+{
+  "passed": 41,
+  "checks": [
+    "verification policy is observed",
+    "events arrive before login response completes",
+    "real login succeeds",
+    "bcrypt comparison is actually timed",
+    "token signing and session storage are observed",
+    "events have ordered server sequence numbers",
+    "finished event matches actual HTTP result",
+    "password and access credentials are absent",
+    "wrong trace capability rejected",
+    "missing trace capability rejected",
+    "trace cannot be rebound to another operation",
+    "incorrect password comparison appears rejected",
+    "unknown accounts perform real bcrypt work without revealing membership",
+    "password comparison publishes only a safe boolean",
+    "traced encryption succeeds",
+    "nonce in trace equals stored nonce",
+    "ciphertext preview equals actual stored ciphertext",
+    "authentication tag equals actual stored tag",
+    "stored byte count equals physical envelope",
+    "wrapped key preview equals actual wrapped key",
+    "signature preview equals actual signature",
+    "SHA256 equals persisted digest",
+    "AES key itself is never included",
+    "decryption trace recovers exact original bytes",
+    "download runs real signature verification",
+    "corrupt ciphertext produces real rejected stage",
+    "signature step is not fabricated after decryption fails",
+    "2FA policy database change is observed",
+    "real OTP challenge and digest comparison are observed",
+    "OTP is absent from event data",
+    "refresh rotation is observed",
+    "profile reads are observable without exposing profile values",
+    "document index counts are measured from actual query results",
+    "activity read counts are measured from actual query results",
+    "activity verification is observed",
+    "deletion event matches physical removal",
+    "recovery keeps account-specific details private",
+    "resend keeps account-specific details private",
+    "password reset and bcrypt hashing are observed",
+    "new password and reset token are absent",
+    "logout revocation is observed"
+  ]
+}
+vellum
+
+Running 2 tests using 1 worker
+
+  ok 1 journey.spec.js:4:1 › complete real vault journey on desktop and mobile (12.9s)
+  ok 2 live.spec.js:4:1 › live 3D view reflects actual login and file encryption (4.2s)
+
+  2 passed (17.9s)

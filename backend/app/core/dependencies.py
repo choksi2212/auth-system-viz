@@ -4,6 +4,7 @@ from jwt import InvalidTokenError as JWTError
 from sqlalchemy.orm import Session
 
 from app.core.security import decode_access_token
+from app.core.observation import observed
 from app.db.session import get_db
 from app.models.user import User, UserSession
 from datetime import datetime, timezone
@@ -12,6 +13,11 @@ from uuid import UUID
 _bearer = HTTPBearer()
 
 
+@observed(
+    "Authorize active session",
+    "identity",
+    "Verify the token, check the stored session for revocation and expiry, then check account status.",
+)
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
     db: Session = Depends(get_db),
@@ -31,15 +37,24 @@ def get_current_user(
 
     try:
         user_id = UUID(user_id)
-        sid = UUID(payload.get('sid', ''))
+        sid = UUID(payload.get("sid", ""))
     except (ValueError, TypeError):
-        raise HTTPException(401, 'Invalid session.')
+        raise HTTPException(401, "Invalid session.")
     session = db.get(UserSession, sid)
-    if not session or session.user_id != user_id or session.is_revoked or session.expires_at <= datetime.now(timezone.utc):
-        raise HTTPException(401, 'Session expired. Please sign in again.')
+    if (
+        not session
+        or session.user_id != user_id
+        or session.is_revoked
+        or session.expires_at <= datetime.now(timezone.utc)
+    ):
+        raise HTTPException(401, "Session expired. Please sign in again.")
     user: User | None = db.get(User, user_id)
     if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials."
+        )
     if user.is_locked:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is locked.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Account is locked."
+        )
     return user

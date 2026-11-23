@@ -9,6 +9,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.core.config import settings
+from app.core.observation import observed
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -20,16 +21,39 @@ limiter = Limiter(
 )
 
 
+@observed(
+    "Hash password",
+    "crypto",
+    "bcrypt creates a salted, deliberately expensive password verifier. The password and verifier never enter this view.",
+    algorithm="bcrypt",
+    work_factor=12,
+)
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
+@observed(
+    "Compare password securely",
+    "identity",
+    "bcrypt checks the submitted password against a selected salted verifier, without exposing either value.",
+    algorithm="bcrypt",
+    result="No password or stored hash is exposed",
+)
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
+@observed(
+    "Sign access token",
+    "crypto",
+    "The server signs the session claims with HMAC-SHA256. The token itself stays outside this view.",
+    algorithm="HS256",
+    expiry_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+)
 def create_access_token(subject: str, session_id: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
     return jwt.encode(
         {"sub": subject, "sid": session_id, "exp": expire, "type": "access"},
         settings.SECRET_KEY,
@@ -37,10 +61,22 @@ def create_access_token(subject: str, session_id: str) -> str:
     )
 
 
+@observed(
+    "Generate refresh credential",
+    "crypto",
+    "The operating system random source generates a new 64-byte refresh secret.",
+    random_bytes=64,
+)
 def create_refresh_token() -> str:
     return secrets.token_urlsafe(64)
 
 
+@observed(
+    "Sign pending challenge",
+    "crypto",
+    "A short-lived JWT binds the password-verified user to the OTP flow.",
+    expiry_seconds=300,
+)
 def create_2fa_pending_token(user_id: str) -> str:
     """Short-lived JWT used as a session handle between password verification and OTP verification."""
     expire = datetime.now(timezone.utc) + timedelta(minutes=5)
@@ -51,15 +87,31 @@ def create_2fa_pending_token(user_id: str) -> str:
     )
 
 
+@observed(
+    "Verify token signature",
+    "identity",
+    "Validate the JWT signature, expiry, and access-token type before trusting any claims.",
+    algorithm="HS256",
+)
 def decode_access_token(token: str) -> dict[str, Any]:
-    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    payload = jwt.decode(
+        token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+    )
     if payload.get("type") != "access":
         raise JWTError("Invalid token type")
     return payload
 
 
+@observed(
+    "Verify challenge signature",
+    "identity",
+    "Validate the pending JWT signature, expiry, and challenge type.",
+    algorithm="HS256",
+)
 def decode_2fa_pending_token(token: str) -> dict[str, Any]:
-    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    payload = jwt.decode(
+        token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+    )
     if payload.get("type") != "2fa_pending":
         raise JWTError("Invalid token type")
     return payload

@@ -26,6 +26,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.observation import observed, commit, privacy_flow, step, private_steps
 from app.core.security import (
     create_2fa_pending_token,
     create_access_token,
@@ -45,14 +46,27 @@ _MAX_OTP_ATTEMPTS = 5
 _OTP_EXPIRE_MINUTES = 5
 _EMAIL_TOKEN_EXPIRE_HOURS = 24
 _RESET_TOKEN_EXPIRE_HOURS = 1
+# Real bcrypt work for unknown accounts keeps failed-login traces from revealing membership.
+_UNKNOWN_ACCOUNT_VERIFIER = hash_password(secrets.token_urlsafe(32))
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
+
+@observed(
+    "Hash one-time credential",
+    "crypto",
+    "SHA-256 converts a random credential into a database lookup digest. The raw credential is never stored in the trace.",
+)
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+@observed(
+    "Compare one-time code",
+    "identity",
+    "Hash the submitted OTP and compare digests with hmac.compare_digest.",
+)
 def _verify_otp_hash(otp: str, stored_hash: str) -> bool:
     """Constant-time comparison to prevent timing attacks."""
     return hmac.compare_digest(
@@ -61,12 +75,23 @@ def _verify_otp_hash(otp: str, stored_hash: str) -> bool:
     )
 
 
+@observed(
+    "Generate one-time code",
+    "crypto",
+    "A cryptographically secure random source generates six digits. The code is sent by email, never shown here.",
+)
 def _generate_otp() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
 # ─── Signup & Email Verification ─────────────────────────────────────────────
 
+
+@observed(
+    "Register account",
+    "identity",
+    "Check registration policy, hash the password, and create an unverified account.",
+)
 def signup(payload: SignupRequest, db: Session) -> tuple[str, str]:
     """
     Create a new user and generate an email-verification token.
@@ -99,14 +124,20 @@ def signup(payload: SignupRequest, db: Session) -> tuple[str, str]:
             user_id=user.id,
             token_hash=_hash_token(raw_token),
             purpose=TokenPurpose.EMAIL_VERIFICATION,
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=_EMAIL_TOKEN_EXPIRE_HOURS),
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(hours=_EMAIL_TOKEN_EXPIRE_HOURS),
         )
     )
-    db.commit()
+    commit(db)
     logger.info("New account registered: user_id=%s", user.id)
     return user.email, raw_token
 
 
+@observed(
+    "Verify email ownership",
+    "identity",
+    "Match the token digest, purpose, expiry, and unused status; then consume it and verify the account.",
+)
 def verify_email(token: str, db: Session) -> None:
     otp = (
         db.query(OneTimeToken)
@@ -125,10 +156,11 @@ def verify_email(token: str, db: Session) -> None:
         )
     otp.is_used = True
     otp.user.is_verified = True
-    db.commit()
+    commit(db)
     logger.info("Email verified: user_id=%s", otp.user_id)
 
 
+@privacy_flow
 def resend_verification(email: str, db: Session) -> tuple[str, str] | None:
     """
     Invalidate any pending verification tokens and issue a fresh one.
@@ -136,7 +168,9 @@ def resend_verification(email: str, db: Session) -> tuple[str, str] | None:
     """
     user: User | None = (
         db.query(User)
-        .filter(User.email == email, User.is_verified.is_(False), User.is_active.is_(True))
+        .filter(
+            User.email == email, User.is_verified.is_(False), User.is_active.is_(True)
+        )
         .first()
     )
     if not user:
@@ -154,14 +188,16 @@ def resend_verification(email: str, db: Session) -> tuple[str, str] | None:
             user_id=user.id,
             token_hash=_hash_token(raw_token),
             purpose=TokenPurpose.EMAIL_VERIFICATION,
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=_EMAIL_TOKEN_EXPIRE_HOURS),
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(hours=_EMAIL_TOKEN_EXPIRE_HOURS),
         )
     )
-    db.commit()
+    commit(db)
     return user.email, raw_token
 
 
 # ─── Login & 2FA ─────────────────────────────────────────────────────────────
+
 
 def login(payload: LoginRequest, db: Session) -> dict[str, Any]:
     """
@@ -174,12 +210,22 @@ def login(payload: LoginRequest, db: Session) -> dict[str, Any]:
     The "otp" key in the otp_required result is returned to the API layer ONLY
     to pass to the background email task — it is never logged or stored raw.
     """
-    user: User | None = db.query(User).filter(User.email == payload.email).first()
+    with step(
+        "Look up the login account",
+        "identity",
+        "Query the login account. No email, password verifier or account record is returned to the visualizer.",
+    ):
+        user: User | None = db.query(User).filter(User.email == payload.email).first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
+        verify_password(payload.password, _UNKNOWN_ACCOUNT_VERIFIER)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials."
+        )
 
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated."
+        )
 
     now = datetime.now(timezone.utc)
     if user.is_locked and user.locked_until and user.locked_until > now:
@@ -195,14 +241,17 @@ def login(payload: LoginRequest, db: Session) -> dict[str, Any]:
             user.is_locked = True
             user.locked_until = now + timedelta(minutes=_LOCK_DURATION_MINUTES)
             logger.warning("Account locked after failed attempts: user_id=%s", user.id)
-        db.commit()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
+        with private_steps():
+            commit(db)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials."
+        )
 
     # Password is correct — reset brute-force counters immediately
     user.failed_login_attempts = 0
     user.is_locked = False
     user.locked_until = None
-    db.commit()
+    commit(db)
 
     # Email must be verified before issuing tokens
     if not user.is_verified:
@@ -210,6 +259,13 @@ def login(payload: LoginRequest, db: Session) -> dict[str, Any]:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Please verify your email address before logging in.",
         )
+
+    with step(
+        "Check email verification and second-factor policy",
+        "identity",
+        "Only verified accounts may continue. The configured second-factor policy chooses a challenge or direct session.",
+    ) as result:
+        result["second_factor"] = "required" if user.is_2fa_enabled else "not enabled"
 
     # ── 2FA path ──────────────────────────────────────────────────────────────
     if user.is_2fa_enabled:
@@ -225,7 +281,7 @@ def login(payload: LoginRequest, db: Session) -> dict[str, Any]:
             )
         )
         pending_token = create_2fa_pending_token(str(user.id))
-        db.commit()
+        commit(db)
 
         logger.info("2FA OTP generated: user_id=%s", user.id)
         return {
@@ -238,9 +294,18 @@ def login(payload: LoginRequest, db: Session) -> dict[str, Any]:
     # ── Direct login path ─────────────────────────────────────────────────────
     access_token, raw_refresh = _create_session(user.id, now, db)
     logger.info("Successful login: user_id=%s", user.id)
-    return {"status": "success", "access_token": access_token, "refresh_token": raw_refresh}
+    return {
+        "status": "success",
+        "access_token": access_token,
+        "refresh_token": raw_refresh,
+    }
 
 
+@observed(
+    "Validate OTP challenge",
+    "identity",
+    "Check the challenge signature and stored OTP attempt count, expiry, and digest.",
+)
 def verify_otp(pending_token: str, otp: str, db: Session) -> tuple[str, str]:
     """Validate 2FA OTP and issue a full session on success."""
     from jwt import InvalidTokenError as JWTError
@@ -272,7 +337,7 @@ def verify_otp(pending_token: str, otp: str, db: Session) -> tuple[str, str]:
 
     if otp_record.attempt_count >= _MAX_OTP_ATTEMPTS:
         db.delete(otp_record)
-        db.commit()
+        commit(db)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many incorrect attempts. Please log in and request a new OTP.",
@@ -280,7 +345,7 @@ def verify_otp(pending_token: str, otp: str, db: Session) -> tuple[str, str]:
 
     if not _verify_otp_hash(otp, otp_record.otp_hash):
         otp_record.attempt_count += 1
-        db.commit()
+        commit(db)
         remaining = _MAX_OTP_ATTEMPTS - otp_record.attempt_count
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -292,8 +357,10 @@ def verify_otp(pending_token: str, otp: str, db: Session) -> tuple[str, str]:
 
     user: User | None = db.get(User, user_id)
     if not user or not user.is_active:
-        db.commit()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
+        commit(db)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials."
+        )
 
     now = datetime.now(timezone.utc)
     access_token, raw_refresh = _create_session(user.id, now, db)
@@ -303,6 +370,12 @@ def verify_otp(pending_token: str, otp: str, db: Session) -> tuple[str, str]:
 
 # ─── Token Rotation ───────────────────────────────────────────────────────────
 
+
+@observed(
+    "Rotate session credentials",
+    "identity",
+    "Lock the current session row, reject revoked or expired credentials, and replace the token pair.",
+)
 def refresh_access_token(refresh_token: str, db: Session) -> tuple[str, str]:
     """
     Refresh token rotation — the old token is revoked and a brand-new pair is issued.
@@ -327,7 +400,7 @@ def refresh_access_token(refresh_token: str, db: Session) -> tuple[str, str]:
 
     user = old_session.user
     if not user.is_active or user.is_locked or not user.is_verified:
-        raise HTTPException(401, 'Account unavailable.')
+        raise HTTPException(401, "Account unavailable.")
     # Revoke the old session
     old_session.is_revoked = True
 
@@ -339,6 +412,12 @@ def refresh_access_token(refresh_token: str, db: Session) -> tuple[str, str]:
 
 # ─── Logout ───────────────────────────────────────────────────────────────────
 
+
+@observed(
+    "Revoke session",
+    "identity",
+    "Mark the matching refresh session as revoked. Protected routes also check this session.",
+)
 def logout(refresh_token: str, db: Session) -> None:
     session: UserSession | None = (
         db.query(UserSession)
@@ -347,11 +426,13 @@ def logout(refresh_token: str, db: Session) -> None:
     )
     if session and not session.is_revoked:
         session.is_revoked = True
-        db.commit()
+        commit(db)
 
 
 # ─── Password Reset ───────────────────────────────────────────────────────────
 
+
+@privacy_flow
 def forgot_password(email: str, db: Session) -> tuple[str, str] | None:
     """
     Generate a password-reset token.
@@ -368,13 +449,19 @@ def forgot_password(email: str, db: Session) -> tuple[str, str] | None:
             user_id=user.id,
             token_hash=_hash_token(raw_token),
             purpose=TokenPurpose.PASSWORD_RESET,
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=_RESET_TOKEN_EXPIRE_HOURS),
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(hours=_RESET_TOKEN_EXPIRE_HOURS),
         )
     )
-    db.commit()
+    commit(db)
     return user.email, raw_token
 
 
+@observed(
+    "Reset account credentials",
+    "identity",
+    "Consume the reset token, hash the new password, remove OTPs, and revoke existing sessions.",
+)
 def reset_password(payload: ResetPasswordRequest, db: Session) -> None:
     otp: OneTimeToken | None = (
         db.query(OneTimeToken)
@@ -393,17 +480,23 @@ def reset_password(payload: ResetPasswordRequest, db: Session) -> None:
         )
 
     db.query(OTPCode).filter(OTPCode.user_id == otp.user_id).delete()
-    db.query(OneTimeToken).filter(OneTimeToken.user_id == otp.user_id, OneTimeToken.purpose == TokenPurpose.PASSWORD_RESET).update({'is_used': True})
+    db.query(OneTimeToken).filter(
+        OneTimeToken.user_id == otp.user_id,
+        OneTimeToken.purpose == TokenPurpose.PASSWORD_RESET,
+    ).update({"is_used": True})
     otp.is_used = True
     otp.user.hashed_password = hash_password(payload.password)
 
     # Revoke ALL active sessions — forces re-authentication everywhere
-    db.query(UserSession).filter(UserSession.user_id == otp.user_id).update({"is_revoked": True})
-    db.commit()
+    db.query(UserSession).filter(UserSession.user_id == otp.user_id).update(
+        {"is_revoked": True}
+    )
+    commit(db)
     logger.info("Password reset: user_id=%s", otp.user_id)
 
 
 # ─── Internal ─────────────────────────────────────────────────────────────────
+
 
 def _create_session(user_id: Any, now: datetime, db: Session) -> tuple[str, str]:
     """Create a new UserSession row and return (access_token, raw_refresh_token)."""
@@ -418,5 +511,5 @@ def _create_session(user_id: Any, now: datetime, db: Session) -> tuple[str, str]
             expires_at=now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         )
     )
-    db.commit()
+    commit(db)
     return access_token, raw_refresh

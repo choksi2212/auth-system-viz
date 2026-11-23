@@ -1,0 +1,153 @@
+{
+  "signup_status": 201,
+  "events": [
+    {
+      "type": "request",
+      "seq": 1,
+      "at_ms": 0.005,
+      "name": "POST /auth/signup"
+    },
+    {
+      "type": "step",
+      "seq": 2,
+      "at_ms": 0.026,
+      "id": "5c0ea4a5b1ff",
+      "parent": null,
+      "name": "Process API request",
+      "category": "request",
+      "explanation": "FastAPI runs validation, dependencies, the endpoint, and any queued background work.",
+      "status": "running",
+      "facts": {
+        "method": "POST"
+      }
+    },
+    {
+      "type": "step",
+      "seq": 3,
+      "at_ms": 1.22,
+      "id": "1d99151d702d",
+      "parent": "5c0ea4a5b1ff",
+      "name": "Register account",
+      "category": "identity",
+      "explanation": "Check registration policy, hash the password, and create an unverified account.",
+      "status": "running",
+      "facts": {}
+    },
+    {
+      "type": "step",
+      "seq": 4,
+      "at_ms": 8.371,
+      "id": "438d08642d33",
+      "parent": "1d99151d702d",
+      "name": "Hash password",
+      "category": "crypto",
+      "explanation": "bcrypt creates a salted, deliberately expensive password verifier. The password and verifier never enter this view.",
+      "status": "running",
+      "facts": {
+        "algorithm": "bcrypt",
+        "work_factor": 12
+      }
+    },
+    {
+      "type": "update",
+      "seq": 5,
+      "at_ms": 175.933,
+      "id": "438d08642d33",
+      "status": "complete",
+      "duration_ms": 167.54,
+      "facts": {}
+    },
+    {
+      "type": "step",
+      "seq": 6,
+      "at_ms": 177.949,
+      "id": "82fc9c19303d",
+      "parent": "1d99151d702d",
+      "name": "Hash one-time credential",
+      "category": "crypto",
+      "explanation": "SHA-256 converts a random credential into a database lookup digest. The raw credential is never stored in the trace.",
+      "status": "running",
+      "facts": {}
+    },
+    {
+      "type": "update",
+      "seq": 7,
+      "at_ms": 177.996,
+      "id": "82fc9c19303d",
+      "status": "complete",
+      "duration_ms": 0.04,
+      "facts": {}
+    },
+    {
+      "type": "step",
+      "seq": 8,
+      "at_ms": 178.075,
+      "id": "e75d57fdda5b",
+      "parent": "1d99151d702d",
+      "name": "Commit database transaction",
+      "category": "storage",
+      "explanation": "PostgreSQL commits the pending changes atomically.",
+      "status": "running",
+      "facts": {}
+    },
+    {
+      "type": "update",
+      "seq": 9,
+      "at_ms": 184.261,
+      "id": "e75d57fdda5b",
+      "status": "complete",
+      "duration_ms": 6.177,
+      "facts": {}
+    },
+    {
+      "type": "update",
+      "seq": 10,
+      "at_ms": 185.793,
+      "id": "1d99151d702d",
+      "status": "complete",
+      "duration_ms": 184.564,
+      "facts": {}
+    },
+    {
+      "type": "step",
+      "seq": 11,
+      "at_ms": 186.655,
+      "id": "4b0565b09276",
+      "parent": "5c0ea4a5b1ff",
+      "name": "Submit security email",
+      "category": "delivery",
+      "explanation": "Send the real email through Brevo over HTTPS. Provider acceptance does not by itself confirm inbox delivery.",
+      "status": "running",
+      "facts": {}
+    },
+    {
+      "type": "update",
+      "seq": 12,
+      "at_ms": 1143.984,
+      "id": "4b0565b09276",
+      "status": "complete",
+      "duration_ms": 957.318,
+      "facts": {
+        "provider_http_status": 201
+      }
+    },
+    {
+      "type": "update",
+      "seq": 13,
+      "at_ms": 1144.556,
+      "id": "5c0ea4a5b1ff",
+      "status": "complete",
+      "duration_ms": 1144.523,
+      "facts": {
+        "http_status": 201
+      }
+    },
+    {
+      "type": "finished",
+      "seq": 14,
+      "at_ms": 1144.561,
+      "status": "complete",
+      "http_status": 201
+    }
+  ]
+}

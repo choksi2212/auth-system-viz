@@ -3,7 +3,7 @@
   "concurrency": 20,
   "all_rejected_401": true,
   "oversized_30MiB_status": 413,
-  "oversized_rejection_seconds": 0.172,
+  "oversized_rejection_seconds": 0.156,
   "login_rate_limit_statuses": [
     401,
     401,
